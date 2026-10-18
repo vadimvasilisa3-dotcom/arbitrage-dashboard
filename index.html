@@ -298,6 +298,7 @@
     }
     noteEl.textContent = "Цифра: куплено = рубли на бирже / (Ask × 1,015). 1,50% списывается рублями. Tradex: часть 1, 2 и 3 покупаются по своим курсам. Курс в поле — средняя уже с тейкером 0,2%, как в отчёте. Второй раз на 1,002 цена не умножается. Точные средние стакана дают на 300 000 ₽ и одном выводе +4 168,88 ₽. Округление полей до 84,36 / 84,42 / 84,49 даёт +4 167,07 ₽.";
     function cifraFee(p) { return Math.min(p * 0.007, 1500); }
+    function cifraCardFee() { return 0; }
     function cifraBuy(b) {
       var net = b / 1.015;
       return { qty: net / cAsk, trade: b - net };
@@ -335,6 +336,9 @@
     add("Цифра, части по 100 000 ₽, вывод на каждой", {
       parts: manyC.parts, feeOf: cifraFee, buyOf: cifraBuy, wd: 10, one: false, minBuy: 11, cifra: true
     }, manyC.tail);
+    add("Цифра, Карта (Безнал 0%)", {
+      parts: [dep], feeOf: cifraCardFee, buyOf: cifraBuy, wd: 10, one: true, minBuy: 11, cifra: true
+    }, 0);
     var txAll = splitParts(dep, 100000, 500);
     var txParts = txAll.parts.slice(0, 3);
     var txExtra = txAll.parts.slice(3).reduce(function (s, x) { return s + x; }, 0);
