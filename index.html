@@ -62,7 +62,7 @@
 <header>
   <div>
     <h1>Ввод рублей → покупка USDT → Rapira</h1>
-    <p class="muted">17.10.2026. Три шага: ввод, покупка, вывод. 1 USDT на выходе = 87,29 ₽. Комиссия 0,08 ₽ второй раз не вычитается.</p>
+    <p class="muted" id="lead">17.10.2026. Три шага: ввод, покупка, вывод. 1 USDT на выходе = 87,29 ₽. Комиссия 0,08 ₽ второй раз не вычитается.</p>
   </div>
   <button type="button" id="theme">Светлая тема</button>
 </header>
@@ -206,14 +206,14 @@
 <div id="panel-calc" class="panel" hidden>
 <section>
   <h2>Калькулятор СБП: Цифра и Tradex</h2>
-  <p class="muted">Три шага. Цифра: СБП 0,7% и не больше 1 500 ₽ за платёж, лимит 10–1 000 000 ₽. Покупка: рубли на бирже / (Ask × 1,015). Комиссия сделки 1,50% списывается рублями. Вывод 10 USDT. Tradex: СБП 1,8%, части до 100 000 ₽. У каждой части свой курс. Этот курс — средняя уже с тейкером 0,2%. Вывод 5 USDT. Четвёртая часть курса не имеет.</p>
+  <p class="muted" id="calcLead">Три шага. Цифра СБП: 0,7% и не больше 1 500 ₽ за платёж, лимит платежа 10–1 000 000 ₽, покупка по Ask × 1,015, вывод 10 USDT. Карта безнал: ввод 0%, вся сумма одним платежом, та же покупка 1,50% и вывод 10 USDT. Tradex: СБП 1,8%, части до 100 000 ₽. Часть 1 и часть 2 берут свои курсы, с третьей части берётся курс части 3. Курс уже включает тейкер 0,2%. Вывод 5 USDT.</p>
   <div class="grid">
     <label class="field">Депозит, ₽<input id="dep" type="number" min="0" step="1000" value="300000"></label>
     <label class="field">Выход Rapira, ₽ за 1 USDT<input id="out" type="number" min="0" step="0.01" value="87.29"></label>
     <label class="field">Ask Цифры, ₽<input id="cAsk" type="number" min="0" step="0.01" value="84.18"></label>
-    <label class="field">Курс Tradex, часть 1. В отчёте 84,36<input id="tAsk1" type="number" min="0" step="0.000001" value="84.357676"></label>
-    <label class="field">Курс Tradex, часть 2. В отчёте 84,42<input id="tAsk2" type="number" min="0" step="0.000001" value="84.422318"></label>
-    <label class="field">Курс Tradex, часть 3. В отчёте 84,49<input id="tAsk3" type="number" min="0" step="0.000001" value="84.488495"></label>
+    <label class="field">Курс Tradex, часть 1 (с тейкером 0,2%)<input id="tAsk1" type="number" min="0" step="0.000001" value="84.357676"></label>
+    <label class="field">Курс Tradex, часть 2 (с тейкером 0,2%)<input id="tAsk2" type="number" min="0" step="0.000001" value="84.422318"></label>
+    <label class="field">Курс Tradex, часть 3 и далее (с тейкером 0,2%)<input id="tAsk3" type="number" min="0" step="0.000001" value="84.488495"></label>
   </div>
   <p id="calcNote" class="muted"></p>
   <div class="wrap">
@@ -227,7 +227,7 @@
 </section>
 </div>
 </main>
-<footer>Числа из arbitrage/dashboard.md. Курс 87,29 ₽ задан заданием 17.10.</footer>
+<footer id="pageFoot">Числа из arbitrage/dashboard.md. Курс 87,29 ₽ задан заданием 17.10.</footer>
 <script>
   var root = document.documentElement, btn = document.getElementById("theme");
   if (localStorage.getItem("arb-theme") === "light") root.setAttribute("data-theme", "light");
@@ -245,11 +245,28 @@
   var noteEl = document.getElementById("calcNote");
   var tabReport = document.getElementById("tabReport");
   var tabCalc = document.getElementById("tabCalc");
+  var leadEl = document.getElementById("lead");
+  var footEl = document.getElementById("pageFoot");
+  var leadReport = leadEl.textContent;
+  var footReport = footEl.textContent;
+  function paintChrome() {
+    var onCalc = !document.getElementById("panel-calc").hidden;
+    if (!onCalc) {
+      leadEl.textContent = leadReport;
+      footEl.textContent = footReport;
+      return;
+    }
+    var rap = readNum(outEl);
+    var rate = rap > 0 ? fmt(rap, 2) + " ₽" : "курс не задан";
+    leadEl.textContent = "Калькулятор. 1 USDT на выходе = " + rate + ". Комиссия 0,08 ₽ второй раз не вычитается.";
+    footEl.textContent = "Калькулятор. Курс выхода Rapira: " + rate + ".";
+  }
   function showTab(name) {
     document.getElementById("panel-report").hidden = name !== "report";
     document.getElementById("panel-calc").hidden = name !== "calc";
     tabReport.classList.toggle("on", name === "report");
     tabCalc.classList.toggle("on", name === "calc");
+    paintChrome();
   }
   tabReport.addEventListener("click", function () { showTab("report"); });
   tabCalc.addEventListener("click", function () { showTab("calc"); });
@@ -296,7 +313,7 @@
       noteEl.textContent = "Нужны депозит, курс Rapira, Ask Цифры и три курса Tradex больше нуля.";
       return;
     }
-    noteEl.textContent = "Цифра: куплено = рубли на бирже / (Ask × 1,015). 1,50% списывается рублями. Tradex: часть 1, 2 и 3 покупаются по своим курсам. Курс в поле — средняя уже с тейкером 0,2%, как в отчёте. Второй раз на 1,002 цена не умножается. Точные средние стакана дают на 300 000 ₽ и одном выводе +4 168,88 ₽. Округление полей до 84,36 / 84,42 / 84,49 даёт +4 167,07 ₽.";
+    noteEl.textContent = "Депозит " + fmt(dep, 2) + " ₽. Rapira " + fmt(rap, 2) + " ₽. Ask Цифры " + fmt(cAsk, 2) + " ₽: куплено = рубли на бирже / (Ask × 1,015), 1,50% рублями. Карта безнал: ввод 0% на всю сумму. Tradex, курсы частей " + fmt(tRates[0], 6) + " / " + fmt(tRates[1], 6) + " / " + fmt(tRates[2], 6) + " ₽. С 4-й части берётся третий курс. Тейкер 0,2% уже внутри курса Tradex.";
     function cifraFee(p) { return Math.min(p * 0.007, 1500); }
     function cifraCardFee() { return 0; }
     function cifraBuy(b) {
@@ -340,9 +357,8 @@
       parts: [dep], feeOf: cifraCardFee, buyOf: cifraBuy, wd: 10, one: true, minBuy: 11, cifra: true
     }, 0);
     var txAll = splitParts(dep, 100000, 500);
-    var txParts = txAll.parts.slice(0, 3);
-    var txExtra = txAll.parts.slice(3).reduce(function (s, x) { return s + x; }, 0);
-    var txTail = Math.round((txAll.tail + txExtra) * 100) / 100;
+    var txParts = txAll.parts;
+    var txTail = txAll.tail;
     function addTradex(name, oneWithdraw) {
       if (!txParts.length) {
         rows.push({ name: name, empty: "Платёж Tradex не собирается: сумма вне лимита СБП." });
@@ -352,7 +368,7 @@
       txParts.forEach(function (p, i) {
         var f = tradexFee(p);
         var b = p - f;
-        var got = tradexBuy(b, tRates[i]);
+        var got = tradexBuy(b, tRates[Math.min(i, 2)]);
         fee += f;
         bir += b;
         bought += got.qty;
@@ -388,13 +404,14 @@
       } else {
         if (i === bestI || (bestI >= 0 && Math.abs(row.profit - best) < 0.005 && !(row.tail > 0.001))) tr.className = "win";
         else if (row.profit < 0) tr.className = "loss";
-        var tailNote = row.tail > 0.001 ? "<br><span class=\"muted\">Хвост " + fmt(row.tail, 2) + " ₽ в круг не вошёл: мало для СБП или нет курса следующей части</span>" : "";
+        var tailNote = row.tail > 0.001 ? "<br><span class=\"muted\">Хвост " + fmt(row.tail, 2) + " ₽ меньше минимума платежа и в круг не вошёл</span>" : "";
         var profitClass = row.profit < 0 ? "neg" : "pos";
         var tradeLabel = (row.cifra ? "1,50% = " : "0,2% внутри цены = ") + fmt(row.trade, 2);
         tr.innerHTML = "<td>" + row.name + tailNote + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + tradeLabel + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 0) + "</td><td>" + fmt(row.arrive, 4) + "</td><td>" + fmt(row.cash, 2) + "</td><td class=\"" + profitClass + "\">" + (row.profit > 0 ? "+" : "") + fmt(row.profit, 2) + "</td>";
       }
       bodyEl.appendChild(tr);
     });
+    paintChrome();
   }
   [depEl, outEl, cAskEl].concat(tAskEls).forEach(function (el) { el.addEventListener("input", paintCalc); });
   paintCalc();
