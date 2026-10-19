@@ -48,6 +48,12 @@
   table.sbp th, table.sbp td { text-align:right; }
   table.sbp th:first-child, table.sbp td:first-child { text-align:left; }
   table.sbp th:nth-child(5), table.sbp td:nth-child(5) { text-align:right; }
+  .tops { display:flex; flex-direction:column; gap:10px; margin:12px 0; }
+  .top-row { display:grid; grid-template-columns:minmax(140px, 1fr) minmax(220px, 1.4fr) auto; gap:10px; align-items:end; border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--bg); }
+  .top-opts { display:flex; flex-direction:column; gap:8px; color:var(--muted); font-size:14px; }
+  .top-opts label { display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text); min-height:28px; }
+  .tops-actions { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+  .tops-actions button { min-height:44px; }
   @media (max-width: 768px) {
     header, main, footer, nav.tabs { width:auto; margin-left:6px; margin-right:6px; }
     header { padding-top:12px; gap:8px; }
@@ -56,6 +62,7 @@
     .wrap { overflow-x:auto; max-width:100%; -webkit-overflow-scrolling:touch; }
     input[type="number"], select { min-height:44px; font-size:18px; padding:10px 12px; }
     nav.tabs button { min-height:44px; }
+    .top-row { grid-template-columns:1fr; }
   }
 </style>
 </head>
@@ -207,16 +214,18 @@
 <div id="panel-calc" class="panel" hidden>
 <section>
   <h2>Калькулятор СБП: Цифра и Tradex</h2>
-  <p class="muted" id="calcLead">Три шага. Цифра СБП: 0,7% и не больше 1 500 ₽ за платёж, лимит платежа 10–1 000 000 ₽, покупка по Ask × 1,015, вывод 10 USDT. Число пополнений Цифры частями по 100 000 ₽ задаёте вручную: 2 или 3 (поле «Пополнений Цифра»). Карта безнал: ввод 0%, вся сумма одним платежом. Tradex: СБП 1,8%, часть до 100 000 ₽, число пополнений — поле «Пополнений Tradex» (2 или 3). Часть 1 — курс 1, часть 2 — курс 2, часть 3 — курс 3. Курс уже включает тейкер 0,2%. Вывод 5 USDT.</p>
+  <p class="muted" id="calcLead">Три шага. Каждое пополнение вводите вручную: сумма и галочка «только Цифра» или «только Tradex». Цифра и Tradex в одном пополнении не смешиваются. Цифра: любая сумма от 10 ₽, все части по одному Ask, ввод 0,7% (не больше 1 500 ₽), покупка Ask × 1,015, вывод 10 USDT. Tradex: СБП 1,8%, сумма 500–100 000 ₽; 1-е пополнение Tradex — курс 1, 2-е — курс 2, 3-е и далее — курс 3 (тейкер 0,2% уже внутри), вывод 5 USDT.</p>
   <div class="grid">
-    <label class="field">Депозит, ₽<input id="dep" type="number" min="0" step="1000" value="300000"></label>
     <label class="field">Выход Rapira, ₽ за 1 USDT<input id="out" type="number" min="0" step="0.01" value="87.29"></label>
     <label class="field">Ask Цифры, ₽<input id="cAsk" type="number" min="0" step="0.01" value="84.18"></label>
-    <label class="field">Пополнений Цифра<select id="cfCount"><option value="2">2 пополнения</option><option value="3" selected>3 пополнения</option></select></label>
-    <label class="field">Пополнений Tradex<select id="txCount"><option value="2">2 пополнения</option><option value="3" selected>3 пополнения</option></select></label>
     <label class="field">Курс Tradex, часть 1 (с тейкером 0,2%)<input id="tAsk1" type="number" min="0" step="0.000001" value="84.357676"></label>
     <label class="field">Курс Tradex, часть 2 (с тейкером 0,2%)<input id="tAsk2" type="number" min="0" step="0.000001" value="84.422318"></label>
-    <label class="field">Курс Tradex, часть 3 (с тейкером 0,2%)<input id="tAsk3" type="number" min="0" step="0.000001" value="84.488495"></label>
+    <label class="field">Курс Tradex, часть 3 и далее (с тейкером 0,2%)<input id="tAsk3" type="number" min="0" step="0.000001" value="84.488495"></label>
+  </div>
+  <h2>Пополнения</h2>
+  <div id="topsList" class="tops"></div>
+  <div class="tops-actions">
+    <button type="button" id="addTop">Добавить пополнение</button>
   </div>
   <p id="calcNote" class="muted"></p>
   <div class="wrap">
@@ -236,16 +245,15 @@
   if (localStorage.getItem("arb-theme") === "light") root.setAttribute("data-theme", "light");
   function paint() { btn.textContent = root.getAttribute("data-theme") === "light" ? "Тёмная тема" : "Светлая тема"; }
   paint();
-  var depEl = document.getElementById("dep");
   var outEl = document.getElementById("out");
   var cAskEl = document.getElementById("cAsk");
-  var cfCountEl = document.getElementById("cfCount");
-  var txCountEl = document.getElementById("txCount");
   var tAskEls = [
     document.getElementById("tAsk1"),
     document.getElementById("tAsk2"),
     document.getElementById("tAsk3")
   ];
+  var topsList = document.getElementById("topsList");
+  var addTopBtn = document.getElementById("addTop");
   var bodyEl = document.getElementById("calcBody");
   var noteEl = document.getElementById("calcNote");
   var tabReport = document.getElementById("tabReport");
@@ -254,6 +262,7 @@
   var footEl = document.getElementById("pageFoot");
   var leadReport = leadEl.textContent;
   var footReport = footEl.textContent;
+  var topSeq = 0;
   function paintChrome() {
     var onCalc = !document.getElementById("panel-calc").hidden;
     if (!onCalc) {
@@ -282,145 +291,192 @@
   function fmt(n, d) {
     return n.toLocaleString("ru-RU", { minimumFractionDigits: d, maximumFractionDigits: d });
   }
-  function splitParts(total, maxPart, minPart) {
-    var parts = [], left = Math.round(total * 100) / 100;
-    if (!(left >= minPart)) return { parts: [], tail: left };
-    while (left > maxPart + 0.001) {
-      parts.push(maxPart);
-      left = Math.round((left - maxPart) * 100) / 100;
-    }
-    if (left >= minPart - 0.001) parts.push(left);
-    else return { parts: parts, tail: left };
-    return { parts: parts, tail: 0 };
-  }
-  function splitPartsCount(total, maxPart, minPart, count) {
-    var all = splitParts(total, maxPart, minPart);
-    var n = Math.max(1, Math.min(3, count | 0));
-    if (all.parts.length <= n) return all;
-    var parts = all.parts.slice(0, n);
-    var used = parts.reduce(function (s, x) { return s + x; }, 0);
-    var left = Math.round((total - used) * 100) / 100;
-    return { parts: parts, tail: left };
-  }
   function tradexRateHint(nParts) {
     if (!(nParts > 0)) return "";
     if (nParts === 1) return "курс 1";
     if (nParts === 2) return "курс 1 → 2";
     return "курс 1 → 2 → 3";
   }
-  function runPack(parts, feeOf, buyOf, withdrawEach, oneWithdraw, minBuy) {
-    var fee = 0, bir = 0, bought = 0, trade = 0, short = false;
-    parts.forEach(function (p) {
-      var f = feeOf(p);
-      var b = p - f;
-      var got = buyOf(b);
-      fee += f;
-      bir += b;
-      bought += got.qty;
-      trade += got.trade;
-      if (!oneWithdraw && got.qty < minBuy) short = true;
+  function addTopRow(amount, provider) {
+    topSeq += 1;
+    var id = topSeq;
+    var row = document.createElement("div");
+    row.className = "top-row";
+    row.dataset.id = String(id);
+    row.innerHTML =
+      "<label class=\"field\">Сумма пополнения, ₽" +
+      "<input class=\"top-amt\" type=\"number\" min=\"0\" step=\"1000\" value=\"" + (amount || "") + "\"></label>" +
+      "<div class=\"top-opts\">" +
+      "<label><input type=\"radio\" name=\"prov-" + id + "\" value=\"cifra\"" + (provider === "cifra" ? " checked" : "") + "> Считаем только по Цифре</label>" +
+      "<label><input type=\"radio\" name=\"prov-" + id + "\" value=\"tradex\"" + (provider === "tradex" ? " checked" : "") + "> Считаем только по Tradex</label>" +
+      "</div>" +
+      "<button type=\"button\" class=\"top-del\">Удалить</button>";
+    topsList.appendChild(row);
+    row.querySelector(".top-amt").addEventListener("input", paintCalc);
+    Array.prototype.forEach.call(row.querySelectorAll("input[type=radio]"), function (r) {
+      r.addEventListener("change", paintCalc);
     });
-    var wd = oneWithdraw ? withdrawEach : withdrawEach * parts.length;
-    if (oneWithdraw && bought < minBuy) short = true;
-    var arrive = bought - wd;
-    return { fee: fee, bir: bir, bought: bought, trade: trade, wd: wd, arrive: arrive, short: short };
+    row.querySelector(".top-del").addEventListener("click", function () {
+      if (topsList.children.length <= 1) {
+        row.querySelector(".top-amt").value = "";
+        paintCalc();
+        return;
+      }
+      row.remove();
+      paintCalc();
+    });
+  }
+  function readTops() {
+    var list = [];
+    Array.prototype.forEach.call(topsList.children, function (row, idx) {
+      var amt = readNum(row.querySelector(".top-amt"));
+      var checked = row.querySelector("input[type=radio]:checked");
+      list.push({
+        no: idx + 1,
+        amount: amt,
+        provider: checked ? checked.value : ""
+      });
+    });
+    return list;
   }
   function paintCalc() {
-    var dep = readNum(depEl), rap = readNum(outEl), cAsk = readNum(cAskEl);
+    var rap = readNum(outEl), cAsk = readNum(cAskEl);
     var tRates = tAskEls.map(readNum);
-    var cfWant = Number(cfCountEl.value) === 2 ? 2 : 3;
-    var txWant = Number(txCountEl.value) === 2 ? 2 : 3;
+    var tops = readTops();
     bodyEl.innerHTML = "";
-    if (!(dep > 0) || !(rap > 0) || !(cAsk > 0) || tRates.some(function (x) { return !(x > 0); })) {
-      noteEl.textContent = "Нужны депозит, курс Rapira, Ask Цифры и три курса Tradex больше нуля.";
+    if (!(rap > 0) || !(cAsk > 0) || tRates.some(function (x) { return !(x > 0); })) {
+      noteEl.textContent = "Нужны курс Rapira, Ask Цифры и три курса Tradex больше нуля.";
+      paintChrome();
       return;
     }
     function cifraFee(p) { return Math.min(p * 0.007, 1500); }
-    function cifraCardFee() { return 0; }
     function cifraBuy(b) {
       var net = b / 1.015;
       return { qty: net / cAsk, trade: b - net };
     }
     function tradexFee(p) { return p * 0.018; }
     function tradexBuy(b, rate) {
-      var qty = b / rate;
-      var trade = b - b / 1.002;
-      return { qty: qty, trade: trade };
+      return { qty: b / rate, trade: b - b / 1.002 };
     }
     var rows = [];
-    function add(name, pack, tail, sent) {
-      if (!pack.parts.length) {
-        rows.push({ name: name, empty: "Платёж не собирается: сумма вне лимита СБП." });
+    function pushRow(row) { rows.push(row); }
+    function pushEmpty(name, msg) {
+      pushRow({ name: name, empty: msg });
+    }
+    function pushCifra(name, parts, oneWithdraw) {
+      if (!parts.length) {
+        pushEmpty(name, "Нет сумм Цифры.");
         return;
       }
-      var r = runPack(pack.parts, pack.feeOf, pack.buyOf, pack.wd, pack.one, pack.minBuy);
-      var sentSum = pack.parts.reduce(function (s, x) { return s + x; }, 0);
-      var cash = r.arrive * rap;
-      var profit = cash - sentSum;
-      rows.push({
-        name: name, n: pack.parts.length, fee: r.fee, bir: r.bir, trade: r.trade, bought: r.bought,
-        wd: r.wd, arrive: r.arrive, cash: cash, profit: profit,
-        short: r.short, sent: sentSum, tail: tail || 0, cifra: pack.cifra, rates: ""
+      var fee = 0, bir = 0, bought = 0, trade = 0, short = false, sent = 0;
+      parts.forEach(function (p) {
+        var f = cifraFee(p);
+        var b = p - f;
+        var got = cifraBuy(b);
+        fee += f; bir += b; bought += got.qty; trade += got.trade; sent += p;
+        if (!oneWithdraw && got.qty < 11) short = true;
+      });
+      var wd = oneWithdraw ? 10 : 10 * parts.length;
+      if (oneWithdraw && bought < 11) short = true;
+      var arrive = bought - wd;
+      var cash = arrive * rap;
+      pushRow({
+        name: name, n: parts.length, fee: fee, bir: bir, trade: trade, bought: bought,
+        wd: wd, arrive: arrive, cash: cash, profit: cash - sent, short: short, cifra: true
       });
     }
-    var oneC = splitParts(dep, 1000000, 10);
-    add("Цифра, один платёж" + (dep > 1000000 ? " по лимиту 1 000 000 ₽" : ""), {
-      parts: oneC.parts, feeOf: cifraFee, buyOf: cifraBuy, wd: 10, one: true, minBuy: 11, cifra: true
-    }, oneC.tail);
-    var manyC = splitPartsCount(dep, 100000, 10, cfWant);
-    add("Цифра, " + cfWant + " пополнения по 100 000 ₽, 1 вывод · Ask " + fmt(cAsk, 2), {
-      parts: manyC.parts, feeOf: cifraFee, buyOf: cifraBuy, wd: 10, one: true, minBuy: 11, cifra: true
-    }, manyC.tail);
-    add("Цифра, " + cfWant + " пополнения по 100 000 ₽, вывод на каждой · Ask " + fmt(cAsk, 2), {
-      parts: manyC.parts, feeOf: cifraFee, buyOf: cifraBuy, wd: 10, one: false, minBuy: 11, cifra: true
-    }, manyC.tail);
-    add("Цифра, Карта (Безнал 0%)", {
-      parts: [dep], feeOf: cifraCardFee, buyOf: cifraBuy, wd: 10, one: true, minBuy: 11, cifra: true
-    }, 0);
-    var txAll = splitPartsCount(dep, 100000, 500, txWant);
-    var txParts = txAll.parts;
-    var txTail = txAll.tail;
-    var txHint = tradexRateHint(txParts.length);
-    var usedRates = [];
-    for (var ri = 0; ri < txParts.length; ri++) usedRates.push(fmt(tRates[Math.min(ri, 2)], 6));
-    noteEl.textContent = "Депозит " + fmt(dep, 2) + " ₽. Rapira " + fmt(rap, 2) + " ₽. Цифра: Ask " + fmt(cAsk, 2) + " ₽, выбрано " + cfWant + " пополнения, фактически " + manyC.parts.length + " (все части по одному Ask). Куплено = рубли на бирже / (Ask × 1,015), 1,50%. Карта безнал: ввод 0% на всю сумму. Tradex: выбрано " + txWant + " пополнения, фактически " + txParts.length + " (" + (txHint || "нет") + "). Курсы: " + (usedRates.length ? usedRates.join(" / ") : "—") + " ₽. Часть N берёт курс N. Тейкер 0,2% уже внутри курса Tradex.";
-    function addTradex(name, oneWithdraw) {
-      if (!txParts.length) {
-        rows.push({ name: name, empty: "Платёж Tradex не собирается: сумма вне лимита СБП." });
+    function pushTradex(name, parts, rateIndexes, oneWithdraw) {
+      if (!parts.length) {
+        pushEmpty(name, "Нет сумм Tradex.");
         return;
       }
-      var fee = 0, bir = 0, bought = 0, trade = 0, short = false, sentSum = 0;
-      txParts.forEach(function (p, i) {
+      var fee = 0, bir = 0, bought = 0, trade = 0, short = false, sent = 0;
+      parts.forEach(function (p, i) {
+        var rate = tRates[Math.min(rateIndexes[i], 2)];
         var f = tradexFee(p);
         var b = p - f;
-        var got = tradexBuy(b, tRates[Math.min(i, 2)]);
-        fee += f;
-        bir += b;
-        bought += got.qty;
-        trade += got.trade;
-        sentSum += p;
+        var got = tradexBuy(b, rate);
+        fee += f; bir += b; bought += got.qty; trade += got.trade; sent += p;
         if (!oneWithdraw && got.qty < 20) short = true;
       });
-      var wd = oneWithdraw ? 5 : 5 * txParts.length;
+      var wd = oneWithdraw ? 5 : 5 * parts.length;
       if (oneWithdraw && bought < 20) short = true;
       var arrive = bought - wd;
       var cash = arrive * rap;
-      rows.push({
-        name: name + " · " + txHint, n: txParts.length, fee: fee, bir: bir, trade: trade, bought: bought,
-        wd: wd, arrive: arrive, cash: cash, profit: cash - sentSum,
-        short: short, tail: txTail, cifra: false, rates: txHint
+      var hint = tradexRateHint(Math.min(parts.length, 3));
+      if (parts.length > 3) hint = "курс 1 → 2 → 3 (далее курс 3)";
+      else if (parts.length === 1) hint = "курс " + (rateIndexes[0] + 1);
+      else {
+        var labels = rateIndexes.map(function (x) { return String(Math.min(x, 2) + 1); });
+        hint = "курс " + labels.join(" → ");
+      }
+      pushRow({
+        name: name + " · " + hint, n: parts.length, fee: fee, bir: bir, trade: trade, bought: bought,
+        wd: wd, arrive: arrive, cash: cash, profit: cash - sent, short: short, cifra: false
       });
     }
-    addTradex("Tradex, " + txWant + " пополнения, 1 вывод", true);
-    addTradex("Tradex, " + txWant + " пополнения, вывод на каждой", false);
-    function blocksBest(row) {
-      if (row.empty || row.short || row.arrive <= 0) return true;
-      var minTail = row.cifra ? 10 : 500;
-      return row.tail > 0.001 && row.tail < minTail;
+    var cfParts = [];
+    var txParts = [];
+    var txIdx = [];
+    var notes = [];
+    tops.forEach(function (top) {
+      if (!(top.amount > 0) || !top.provider) return;
+      if (top.provider === "cifra") {
+        if (top.amount < 10) {
+          pushEmpty("Цифра, пополнение #" + top.no + " · " + fmt(top.amount, 2) + " ₽", "Сумма меньше минимума Цифры (10 ₽).");
+          return;
+        }
+        cfParts.push(top.amount);
+        pushCifra(
+          "Цифра, пополнение #" + top.no + " · " + fmt(top.amount, 2) + " ₽ · Ask " + fmt(cAsk, 2) + ", свой вывод",
+          [top.amount],
+          true
+        );
+      } else if (top.provider === "tradex") {
+        if (top.amount < 500 || top.amount > 100000) {
+          pushEmpty(
+            "Tradex, пополнение #" + top.no + " · " + fmt(top.amount, 2) + " ₽",
+            "Tradex СБП: сумма должна быть от 500 до 100 000 ₽."
+          );
+          return;
+        }
+        var idx = txParts.length;
+        txParts.push(top.amount);
+        txIdx.push(idx);
+        pushTradex(
+          "Tradex, пополнение #" + top.no + " · " + fmt(top.amount, 2) + " ₽, свой вывод",
+          [top.amount],
+          [idx],
+          true
+        );
+      }
+    });
+    if (cfParts.length > 1) {
+      pushCifra("Цифра, все выбранные · Ask " + fmt(cAsk, 2) + ", 1 вывод", cfParts, true);
+      pushCifra("Цифра, все выбранные · Ask " + fmt(cAsk, 2) + ", вывод на каждой", cfParts, false);
+    }
+    if (txParts.length > 1) {
+      var idxs = txParts.map(function (_, i) { return i; });
+      pushTradex("Tradex, все выбранные, 1 вывод", txParts, idxs, true);
+      pushTradex("Tradex, все выбранные, вывод на каждой", txParts, idxs, false);
+    }
+    if (!cfParts.length && !txParts.length) {
+      noteEl.textContent = "Добавьте сумму пополнения и отметьте «только Цифра» или «только Tradex».";
+    } else {
+      notes.push("Rapira " + fmt(rap, 2) + " ₽.");
+      if (cfParts.length) {
+        notes.push("Цифра: " + cfParts.length + " пополнения, суммы " + cfParts.map(function (x) { return fmt(x, 2); }).join(" + ") + " ₽, Ask " + fmt(cAsk, 2) + " на каждую часть.");
+      }
+      if (txParts.length) {
+        var used = txParts.map(function (p, i) { return fmt(p, 2) + "→курс " + (Math.min(i, 2) + 1) + " (" + fmt(tRates[Math.min(i, 2)], 6) + ")"; });
+        notes.push("Tradex: " + txParts.length + " пополнения — " + used.join("; ") + ".");
+      }
+      notes.push("Строки «свой вывод» — прибыль по одной сумме. Итоги «все выбранные» только внутри одного провайдера.");
+      noteEl.textContent = notes.join(" ");
     }
     var best = -Infinity, bestI = -1;
     rows.forEach(function (row, i) {
-      if (blocksBest(row)) return;
+      if (row.empty || row.short || row.arrive <= 0) return;
       if (row.profit > best) { best = row.profit; bestI = i; }
     });
     rows.forEach(function (row, i) {
@@ -432,28 +488,23 @@
         tr.className = "ghost";
         tr.innerHTML = "<td>" + row.name + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + fmt(row.trade, 2) + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 0) + "</td><td colspan=\"3\">Вывод не проходит минимум: Цифра 11 USDT, Tradex 20 USDT.</td>";
       } else {
-        if (i === bestI || (bestI >= 0 && Math.abs(row.profit - best) < 0.005 && !blocksBest(row))) tr.className = "win";
+        if (i === bestI || (bestI >= 0 && Math.abs(row.profit - best) < 0.005)) tr.className = "win";
         else if (row.profit < 0) tr.className = "loss";
-        var tailNote = "";
-        if (row.tail > 0.001) {
-          var minTail = row.cifra ? 10 : 500;
-          if (row.tail < minTail) {
-            tailNote = "<br><span class=\"muted\">Хвост " + fmt(row.tail, 2) + " ₽ меньше минимума платежа и в круг не вошёл</span>";
-          } else {
-            tailNote = "<br><span class=\"muted\">Не вошло " + fmt(row.tail, 2) + " ₽: лимит выбранных пополнений</span>";
-          }
-        }
         var profitClass = row.profit < 0 ? "neg" : "pos";
         var tradeLabel = (row.cifra ? "1,50% = " : "0,2% внутри цены = ") + fmt(row.trade, 2);
-        tr.innerHTML = "<td>" + row.name + tailNote + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + tradeLabel + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 0) + "</td><td>" + fmt(row.arrive, 4) + "</td><td>" + fmt(row.cash, 2) + "</td><td class=\"" + profitClass + "\">" + (row.profit > 0 ? "+" : "") + fmt(row.profit, 2) + "</td>";
+        tr.innerHTML = "<td>" + row.name + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + tradeLabel + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 0) + "</td><td>" + fmt(row.arrive, 4) + "</td><td>" + fmt(row.cash, 2) + "</td><td class=\"" + profitClass + "\">" + (row.profit > 0 ? "+" : "") + fmt(row.profit, 2) + "</td>";
       }
       bodyEl.appendChild(tr);
     });
     paintChrome();
   }
-  [depEl, outEl, cAskEl].concat(tAskEls).forEach(function (el) { el.addEventListener("input", paintCalc); });
-  cfCountEl.addEventListener("change", paintCalc);
-  txCountEl.addEventListener("change", paintCalc);
+  addTopBtn.addEventListener("click", function () {
+    addTopRow(100000, "cifra");
+    paintCalc();
+  });
+  [outEl, cAskEl].concat(tAskEls).forEach(function (el) { el.addEventListener("input", paintCalc); });
+  addTopRow(100000, "cifra");
+  addTopRow(100000, "tradex");
   paintCalc();
   btn.addEventListener("click", function () {
     var light = root.getAttribute("data-theme") === "light";
