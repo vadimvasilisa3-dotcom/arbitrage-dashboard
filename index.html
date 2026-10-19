@@ -54,6 +54,23 @@
   .top-opts label { display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text); min-height:28px; }
   .tops-actions { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
   .tops-actions button { min-height:44px; }
+  .fees {
+    margin:0 0 12px; padding:0; border:1px solid var(--line); border-radius:10px;
+    background:var(--bg); color:var(--muted); font-size:13px; line-height:1.45;
+  }
+  .fees > summary {
+    list-style:none; cursor:pointer; user-select:none;
+    padding:10px 12px; color:var(--text); font-weight:650; font-size:14px;
+  }
+  .fees > summary::-webkit-details-marker { display:none; }
+  .fees > summary::before { content:"▸ "; color:var(--muted); font-weight:700; }
+  .fees[open] > summary::before { content:"▾ "; }
+  .fees > summary:hover { background:color-mix(in srgb, var(--ghost) 80%, transparent); border-radius:10px; }
+  .fees[open] > summary { border-bottom:1px solid var(--line); border-radius:10px 10px 0 0; }
+  .fees-body { padding:10px 12px 12px; }
+  .fees strong { color:var(--text); font-weight:650; }
+  .fees-body div { margin:0 0 4px; }
+  .fees-body div:last-child { margin:0; }
   @media (max-width: 768px) {
     header, main, footer, nav.tabs { width:auto; margin-left:6px; margin-right:6px; }
     header { padding-top:12px; gap:8px; }
@@ -214,7 +231,20 @@
 <div id="panel-calc" class="panel" hidden>
 <section>
   <h2>Калькулятор СБП: Цифра и Tradex</h2>
-  <p class="muted" id="calcLead">Три шага. Пополнения вручную: сумма и «только Цифра» или «только Tradex». Цифра: ввод 0,7% (не больше 1 500 ₽), покупка Ask × 1,015. Режим вывода Цифры: напрямую на Rapira (Tron/Ethereum 10 USDT) или через BitGet (Solana/Polygon 3,5 → BEP-20 на Rapira). Tradex: СБП 1,8%, 500–100 000 ₽, курсы частей 1→2→3, вывод 5 USDT.</p>
+  <details class="fees" id="calcLead">
+    <summary>Справка о комиссиях</summary>
+    <div class="fees-body">
+      <div><strong>Шаги:</strong> ввод СБП 0,7% (≤1 500 ₽) · сделка 1,50% · Ask из поля</div>
+      <div><strong>Rapira 10:</strong> Цифра → Tron/ERC 10 USDT → Rapira (зачисление 0)</div>
+      <div><strong>BitGet 3,5+0,01:</strong> Цифра → Sol/Poly 3,5 → BitGet → BEP 0,01 → Rapira (0)</div>
+      <div><strong>Tron:</strong> 10 USDT (Цифра → Rapira напрямую)</div>
+      <div><strong>ERC:</strong> 10 USDT (Цифра → Rapira напрямую)</div>
+      <div><strong>Sol:</strong> 3,5 USDT (Цифра → BitGet)</div>
+      <div><strong>Poly:</strong> 3,5 USDT (Цифра → BitGet)</div>
+      <div><strong>BEP:</strong> 0,01 USDT (BitGet → Rapira)</div>
+      <div><strong>Tradex:</strong> СБП 1,8% · 500–100 000 ₽ · курсы 1→2→3 · вывод 5 USDT</div>
+    </div>
+  </details>
   <div class="grid">
     <label class="field">Выход Rapira, ₽ за 1 USDT<input id="out" type="number" min="0" step="0.01" value="87.29"></label>
     <label class="field">Ask Цифры, ₽<input id="cAsk" type="number" min="0" step="0.01" value="84.18"></label>
