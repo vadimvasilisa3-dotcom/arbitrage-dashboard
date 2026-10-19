@@ -214,10 +214,15 @@
 <div id="panel-calc" class="panel" hidden>
 <section>
   <h2>Калькулятор СБП: Цифра и Tradex</h2>
-  <p class="muted" id="calcLead">Три шага. Каждое пополнение вводите вручную: сумма и галочка «только Цифра» или «только Tradex». Цифра и Tradex в одном пополнении не смешиваются. Цифра: любая сумма от 10 ₽, все части по одному Ask, ввод 0,7% (не больше 1 500 ₽), покупка Ask × 1,015, вывод 10 USDT. Tradex: СБП 1,8%, сумма 500–100 000 ₽; 1-е пополнение Tradex — курс 1, 2-е — курс 2, 3-е и далее — курс 3 (тейкер 0,2% уже внутри), вывод 5 USDT.</p>
+  <p class="muted" id="calcLead">Три шага. Пополнения вручную: сумма и «только Цифра» или «только Tradex». Цифра: ввод 0,7% (не больше 1 500 ₽), покупка Ask × 1,015. Режим вывода Цифры выбираете ниже: напрямую на Rapira (Tron/Ethereum 10 USDT) или через BitGet / Binance (Solana/Polygon 3,5 USDT → биржа → BEP-20 на Rapira). Tradex: СБП 1,8%, 500–100 000 ₽, курсы частей 1→2→3, вывод 5 USDT.</p>
   <div class="grid">
     <label class="field">Выход Rapira, ₽ за 1 USDT<input id="out" type="number" min="0" step="0.01" value="87.29"></label>
     <label class="field">Ask Цифры, ₽<input id="cAsk" type="number" min="0" step="0.01" value="84.18"></label>
+    <label class="field">Режим вывода Цифры<select id="cfExit">
+      <option value="direct">1) Напрямую Rapira (Tron/ERC 10 USDT)</option>
+      <option value="bitget" selected>2) Через BitGet (Sol/Poly 3,5 → BEP 0,01)</option>
+      <option value="binance">3) Через Binance (Sol/Poly 3,5 → BEP 0,01)</option>
+    </select></label>
     <label class="field">Курс Tradex, часть 1 (с тейкером 0,2%)<input id="tAsk1" type="number" min="0" step="0.000001" value="84.357676"></label>
     <label class="field">Курс Tradex, часть 2 (с тейкером 0,2%)<input id="tAsk2" type="number" min="0" step="0.000001" value="84.422318"></label>
     <label class="field">Курс Tradex, часть 3 и далее (с тейкером 0,2%)<input id="tAsk3" type="number" min="0" step="0.000001" value="84.488495"></label>
@@ -247,6 +252,7 @@
   paint();
   var outEl = document.getElementById("out");
   var cAskEl = document.getElementById("cAsk");
+  var cfExitEl = document.getElementById("cfExit");
   var tAskEls = [
     document.getElementById("tAsk1"),
     document.getElementById("tAsk2"),
@@ -254,6 +260,23 @@
   ];
   var topsList = document.getElementById("topsList");
   var addTopBtn = document.getElementById("addTop");
+  /* Yieldo 19.10.2026: Bitget BEP20 0,01; Binance BSC 0,01. Цифра Sol/Poly 3,5; Tron/ERC 10. */
+  var BRIDGE = {
+    direct: { label: "напрямую Rapira", hop1: 10, hop2: 0, bridge: "" },
+    bitget: { label: "BitGet", hop1: 3.5, hop2: 0.01, bridge: "BitGet" },
+    binance: { label: "Binance", hop1: 3.5, hop2: 0.01, bridge: "Binance" }
+  };
+  function cifraExitMode() {
+    var k = cfExitEl.value;
+    return BRIDGE[k] || BRIDGE.direct;
+  }
+  function cifraWdPerRound(mode) {
+    return mode.hop1 + mode.hop2;
+  }
+  function cifraExitHint(mode) {
+    if (!mode.bridge) return "Tron/ERC " + fmt(mode.hop1, 0) + " USDT → Rapira";
+    return "Sol/Poly " + fmt(mode.hop1, 1) + " → " + mode.bridge + " BEP " + fmt(mode.hop2, 2) + " → Rapira";
+  }
   var bodyEl = document.getElementById("calcBody");
   var noteEl = document.getElementById("calcNote");
   var tabReport = document.getElementById("tabReport");
@@ -343,6 +366,9 @@
     var rap = readNum(outEl), cAsk = readNum(cAskEl);
     var tRates = tAskEls.map(readNum);
     var tops = readTops();
+    var exitMode = cifraExitMode();
+    var exitWd = cifraWdPerRound(exitMode);
+    var exitHint = cifraExitHint(exitMode);
     bodyEl.innerHTML = "";
     if (!(rap > 0) || !(cAsk > 0) || tRates.some(function (x) { return !(x > 0); })) {
       noteEl.textContent = "Нужны курс Rapira, Ask Цифры и три курса Tradex больше нуля.";
@@ -376,7 +402,7 @@
         fee += f; bir += b; bought += got.qty; trade += got.trade; sent += p;
         if (!oneWithdraw && got.qty < 11) short = true;
       });
-      var wd = oneWithdraw ? 10 : 10 * parts.length;
+      var wd = oneWithdraw ? exitWd : exitWd * parts.length;
       if (oneWithdraw && bought < 11) short = true;
       var arrive = bought - wd;
       var cash = arrive * rap;
@@ -428,7 +454,7 @@
         }
         cfParts.push(top.amount);
         pushCifra(
-          "Цифра, пополнение #" + top.no + " · " + fmt(top.amount, 2) + " ₽ · Ask " + fmt(cAsk, 2) + ", свой вывод",
+          "Цифра, #" + top.no + " · " + fmt(top.amount, 2) + " ₽ · Ask " + fmt(cAsk, 2) + " · " + exitHint + ", свой круг",
           [top.amount],
           true
         );
@@ -452,8 +478,8 @@
       }
     });
     if (cfParts.length > 1) {
-      pushCifra("Цифра, все выбранные · Ask " + fmt(cAsk, 2) + ", 1 вывод", cfParts, true);
-      pushCifra("Цифра, все выбранные · Ask " + fmt(cAsk, 2) + ", вывод на каждой", cfParts, false);
+      pushCifra("Цифра, все · Ask " + fmt(cAsk, 2) + " · " + exitHint + ", 1 вывод", cfParts, true);
+      pushCifra("Цифра, все · Ask " + fmt(cAsk, 2) + " · " + exitHint + ", вывод на каждой", cfParts, false);
     }
     if (txParts.length > 1) {
       var idxs = txParts.map(function (_, i) { return i; });
@@ -465,13 +491,16 @@
     } else {
       notes.push("Rapira " + fmt(rap, 2) + " ₽.");
       if (cfParts.length) {
-        notes.push("Цифра: " + cfParts.length + " пополнения, суммы " + cfParts.map(function (x) { return fmt(x, 2); }).join(" + ") + " ₽, Ask " + fmt(cAsk, 2) + " на каждую часть.");
+        notes.push("Цифра: " + cfParts.length + " пополнения, суммы " + cfParts.map(function (x) { return fmt(x, 2); }).join(" + ") + " ₽, Ask " + fmt(cAsk, 2) + ".");
+        notes.push("Режим вывода: " + exitHint + " (итого " + fmt(exitWd, 2) + " USDT за один круг).");
+        if (exitMode.bridge) {
+          notes.push("Допуск: депозит Sol/Poly на " + exitMode.bridge + " открыт, зачисление Rapira BEP = 0. Комиссия BEP с Yieldo 19.10.2026.");
+        }
       }
       if (txParts.length) {
         var used = txParts.map(function (p, i) { return fmt(p, 2) + "→курс " + (Math.min(i, 2) + 1) + " (" + fmt(tRates[Math.min(i, 2)], 6) + ")"; });
-        notes.push("Tradex: " + txParts.length + " пополнения — " + used.join("; ") + ".");
+        notes.push("Tradex: " + txParts.length + " пополнения — " + used.join("; ") + " (режим вывода Цифры на Tradex не влияет).");
       }
-      notes.push("Строки «свой вывод» — прибыль по одной сумме. Итоги «все выбранные» только внутри одного провайдера.");
       noteEl.textContent = notes.join(" ");
     }
     var best = -Infinity, bestI = -1;
@@ -486,13 +515,13 @@
         tr.innerHTML = "<td>" + row.name + "</td><td colspan=\"9\">" + row.empty + "</td>";
       } else if (row.short || row.arrive <= 0) {
         tr.className = "ghost";
-        tr.innerHTML = "<td>" + row.name + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + fmt(row.trade, 2) + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 0) + "</td><td colspan=\"3\">Вывод не проходит минимум: Цифра 11 USDT, Tradex 20 USDT.</td>";
+        tr.innerHTML = "<td>" + row.name + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + fmt(row.trade, 2) + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 2) + "</td><td colspan=\"3\">Вывод не проходит минимум: Цифра 11 USDT, Tradex 20 USDT.</td>";
       } else {
         if (i === bestI || (bestI >= 0 && Math.abs(row.profit - best) < 0.005)) tr.className = "win";
         else if (row.profit < 0) tr.className = "loss";
         var profitClass = row.profit < 0 ? "neg" : "pos";
         var tradeLabel = (row.cifra ? "1,50% = " : "0,2% внутри цены = ") + fmt(row.trade, 2);
-        tr.innerHTML = "<td>" + row.name + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + tradeLabel + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 0) + "</td><td>" + fmt(row.arrive, 4) + "</td><td>" + fmt(row.cash, 2) + "</td><td class=\"" + profitClass + "\">" + (row.profit > 0 ? "+" : "") + fmt(row.profit, 2) + "</td>";
+        tr.innerHTML = "<td>" + row.name + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + tradeLabel + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 2) + "</td><td>" + fmt(row.arrive, 4) + "</td><td>" + fmt(row.cash, 2) + "</td><td class=\"" + profitClass + "\">" + (row.profit > 0 ? "+" : "") + fmt(row.profit, 2) + "</td>";
       }
       bodyEl.appendChild(tr);
     });
@@ -503,6 +532,7 @@
     paintCalc();
   });
   [outEl, cAskEl].concat(tAskEls).forEach(function (el) { el.addEventListener("input", paintCalc); });
+  cfExitEl.addEventListener("change", paintCalc);
   addTopRow(100000, "cifra");
   addTopRow(100000, "tradex");
   paintCalc();
