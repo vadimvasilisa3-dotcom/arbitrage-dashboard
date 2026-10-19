@@ -218,8 +218,9 @@
   <div class="grid">
     <label class="field">Выход Rapira, ₽ за 1 USDT<input id="out" type="number" min="0" step="0.01" value="87.29"></label>
     <label class="field">Ask Цифры, ₽<input id="cAsk" type="number" min="0" step="0.01" value="84.18"></label>
-    <label class="field">Режим вывода Цифры<select id="cfExit">
-      <option value="direct">1) Напрямую Rapira (Tron/ERC 10 USDT)</option>
+    <label class="field">Режим вывода Цифры<!-- только direct|bitget -->
+      <select id="cfExit">
+      <option value="direct">1) Напрямую Rapira (Tron/ERC 10)</option>
       <option value="bitget" selected>2) Через BitGet (Sol/Poly 3,5 → BEP 0,01)</option>
     </select></label>
     <label class="field">Курс Tradex, часть 1 (с тейкером 0,2%)<input id="tAsk1" type="number" min="0" step="0.000001" value="84.357676"></label>
