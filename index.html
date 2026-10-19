@@ -207,11 +207,12 @@
 <div id="panel-calc" class="panel" hidden>
 <section>
   <h2>Калькулятор СБП: Цифра и Tradex</h2>
-  <p class="muted" id="calcLead">Три шага. Цифра СБП: 0,7% и не больше 1 500 ₽ за платёж, лимит платежа 10–1 000 000 ₽, покупка по Ask × 1,015, вывод 10 USDT. Карта безнал: ввод 0%, вся сумма одним платежом, та же покупка 1,50% и вывод 10 USDT. Tradex: СБП 1,8%, часть до 100 000 ₽. Число пополнений задаёте вручную: 2 или 3. Часть 1 — курс 1, часть 2 — курс 2, часть 3 — курс 3. Курс уже включает тейкер 0,2%. Вывод 5 USDT.</p>
+  <p class="muted" id="calcLead">Три шага. Цифра СБП: 0,7% и не больше 1 500 ₽ за платёж, лимит платежа 10–1 000 000 ₽, покупка по Ask × 1,015, вывод 10 USDT. Число пополнений Цифры частями по 100 000 ₽ задаёте вручную: 2 или 3 (поле «Пополнений Цифра»). Карта безнал: ввод 0%, вся сумма одним платежом. Tradex: СБП 1,8%, часть до 100 000 ₽, число пополнений — поле «Пополнений Tradex» (2 или 3). Часть 1 — курс 1, часть 2 — курс 2, часть 3 — курс 3. Курс уже включает тейкер 0,2%. Вывод 5 USDT.</p>
   <div class="grid">
     <label class="field">Депозит, ₽<input id="dep" type="number" min="0" step="1000" value="300000"></label>
     <label class="field">Выход Rapira, ₽ за 1 USDT<input id="out" type="number" min="0" step="0.01" value="87.29"></label>
     <label class="field">Ask Цифры, ₽<input id="cAsk" type="number" min="0" step="0.01" value="84.18"></label>
+    <label class="field">Пополнений Цифра<select id="cfCount"><option value="2">2 пополнения</option><option value="3" selected>3 пополнения</option></select></label>
     <label class="field">Пополнений Tradex<select id="txCount"><option value="2">2 пополнения</option><option value="3" selected>3 пополнения</option></select></label>
     <label class="field">Курс Tradex, часть 1 (с тейкером 0,2%)<input id="tAsk1" type="number" min="0" step="0.000001" value="84.357676"></label>
     <label class="field">Курс Tradex, часть 2 (с тейкером 0,2%)<input id="tAsk2" type="number" min="0" step="0.000001" value="84.422318"></label>
@@ -238,6 +239,7 @@
   var depEl = document.getElementById("dep");
   var outEl = document.getElementById("out");
   var cAskEl = document.getElementById("cAsk");
+  var cfCountEl = document.getElementById("cfCount");
   var txCountEl = document.getElementById("txCount");
   var tAskEls = [
     document.getElementById("tAsk1"),
@@ -326,6 +328,7 @@
   function paintCalc() {
     var dep = readNum(depEl), rap = readNum(outEl), cAsk = readNum(cAskEl);
     var tRates = tAskEls.map(readNum);
+    var cfWant = Number(cfCountEl.value) === 2 ? 2 : 3;
     var txWant = Number(txCountEl.value) === 2 ? 2 : 3;
     bodyEl.innerHTML = "";
     if (!(dep > 0) || !(rap > 0) || !(cAsk > 0) || tRates.some(function (x) { return !(x > 0); })) {
@@ -364,11 +367,11 @@
     add("Цифра, один платёж" + (dep > 1000000 ? " по лимиту 1 000 000 ₽" : ""), {
       parts: oneC.parts, feeOf: cifraFee, buyOf: cifraBuy, wd: 10, one: true, minBuy: 11, cifra: true
     }, oneC.tail);
-    var manyC = splitParts(dep, 100000, 10);
-    add("Цифра, части по 100 000 ₽, 1 вывод", {
+    var manyC = splitPartsCount(dep, 100000, 10, cfWant);
+    add("Цифра, " + cfWant + " пополнения по 100 000 ₽, 1 вывод · Ask " + fmt(cAsk, 2), {
       parts: manyC.parts, feeOf: cifraFee, buyOf: cifraBuy, wd: 10, one: true, minBuy: 11, cifra: true
     }, manyC.tail);
-    add("Цифра, части по 100 000 ₽, вывод на каждой", {
+    add("Цифра, " + cfWant + " пополнения по 100 000 ₽, вывод на каждой · Ask " + fmt(cAsk, 2), {
       parts: manyC.parts, feeOf: cifraFee, buyOf: cifraBuy, wd: 10, one: false, minBuy: 11, cifra: true
     }, manyC.tail);
     add("Цифра, Карта (Безнал 0%)", {
@@ -380,7 +383,7 @@
     var txHint = tradexRateHint(txParts.length);
     var usedRates = [];
     for (var ri = 0; ri < txParts.length; ri++) usedRates.push(fmt(tRates[Math.min(ri, 2)], 6));
-    noteEl.textContent = "Депозит " + fmt(dep, 2) + " ₽. Rapira " + fmt(rap, 2) + " ₽. Ask Цифры " + fmt(cAsk, 2) + " ₽: куплено = рубли на бирже / (Ask × 1,015), 1,50% рублями. Карта безнал: ввод 0% на всю сумму. Tradex: выбрано " + txWant + " пополнения, фактически " + txParts.length + " (" + (txHint || "нет") + "). Курсы: " + (usedRates.length ? usedRates.join(" / ") : "—") + " ₽. Часть N берёт курс N (1→1, 2→2, 3→3). Тейкер 0,2% уже внутри курса.";
+    noteEl.textContent = "Депозит " + fmt(dep, 2) + " ₽. Rapira " + fmt(rap, 2) + " ₽. Цифра: Ask " + fmt(cAsk, 2) + " ₽, выбрано " + cfWant + " пополнения, фактически " + manyC.parts.length + " (все части по одному Ask). Куплено = рубли на бирже / (Ask × 1,015), 1,50%. Карта безнал: ввод 0% на всю сумму. Tradex: выбрано " + txWant + " пополнения, фактически " + txParts.length + " (" + (txHint || "нет") + "). Курсы: " + (usedRates.length ? usedRates.join(" / ") : "—") + " ₽. Часть N берёт курс N. Тейкер 0,2% уже внутри курса Tradex.";
     function addTradex(name, oneWithdraw) {
       if (!txParts.length) {
         rows.push({ name: name, empty: "Платёж Tradex не собирается: сумма вне лимита СБП." });
@@ -412,7 +415,8 @@
     addTradex("Tradex, " + txWant + " пополнения, вывод на каждой", false);
     function blocksBest(row) {
       if (row.empty || row.short || row.arrive <= 0) return true;
-      return row.tail > 0.001 && row.tail < 500;
+      var minTail = row.cifra ? 10 : 500;
+      return row.tail > 0.001 && row.tail < minTail;
     }
     var best = -Infinity, bestI = -1;
     rows.forEach(function (row, i) {
@@ -432,7 +436,8 @@
         else if (row.profit < 0) tr.className = "loss";
         var tailNote = "";
         if (row.tail > 0.001) {
-          if (row.tail < 500) {
+          var minTail = row.cifra ? 10 : 500;
+          if (row.tail < minTail) {
             tailNote = "<br><span class=\"muted\">Хвост " + fmt(row.tail, 2) + " ₽ меньше минимума платежа и в круг не вошёл</span>";
           } else {
             tailNote = "<br><span class=\"muted\">Не вошло " + fmt(row.tail, 2) + " ₽: лимит выбранных пополнений</span>";
@@ -447,6 +452,7 @@
     paintChrome();
   }
   [depEl, outEl, cAskEl].concat(tAskEls).forEach(function (el) { el.addEventListener("input", paintCalc); });
+  cfCountEl.addEventListener("change", paintCalc);
   txCountEl.addEventListener("change", paintCalc);
   paintCalc();
   btn.addEventListener("click", function () {
