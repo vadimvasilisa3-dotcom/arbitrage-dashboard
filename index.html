@@ -45,15 +45,23 @@
   label.field { display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:14px; }
   input[type="number"], select { font:18px/1.2 "Segoe UI", system-ui, sans-serif; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); }
   select { min-height:42px; }
-  table.sbp th, table.sbp td { text-align:right; }
-  table.sbp th:first-child, table.sbp td:first-child { text-align:left; }
+  table.sbp { min-width:980px; }
+  table.sbp th, table.sbp td { text-align:right; white-space:nowrap; }
+  table.sbp th:first-child, table.sbp td:first-child { text-align:left; white-space:normal; max-width:200px; }
   table.sbp th:nth-child(5), table.sbp td:nth-child(5) { text-align:right; }
   .tops { display:flex; flex-direction:column; gap:10px; margin:12px 0; }
-  .top-row { display:grid; grid-template-columns:minmax(140px, 1fr) minmax(220px, 1.4fr) auto; gap:10px; align-items:end; border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--bg); }
+  .top-row { display:grid; grid-template-columns:minmax(140px, 1fr) minmax(160px, 1fr) auto; gap:10px; align-items:end; border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--bg); }
   .top-opts { display:flex; flex-direction:column; gap:8px; color:var(--muted); font-size:14px; }
   .top-opts label { display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text); min-height:28px; }
   .tops-actions { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
   .tops-actions button { min-height:44px; }
+  .ops-panel { display:flex; flex-direction:column; gap:14px; margin:8px 0 0; }
+  .ops-block { border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--bg); }
+  .ops-block h3 { margin:0 0 8px; font-size:14px; font-weight:700; color:var(--text); letter-spacing:0.02em; text-transform:uppercase; }
+  .ops-note { display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:14px; line-height:1.4; }
+  .ops-line { display:grid; grid-template-columns:110px 1fr; gap:10px; align-items:baseline; }
+  .ops-k { color:var(--text); font-weight:650; }
+  .ops-empty { color:var(--muted); font-size:14px; }
   .fees {
     margin:0 0 12px; padding:0; border:1px solid var(--line); border-radius:10px;
     background:var(--bg); color:var(--muted); font-size:13px; line-height:1.45;
@@ -257,19 +265,40 @@
     <label class="field">Курс Tradex, часть 2 (с тейкером 0,2%)<input id="tAsk2" type="number" min="0" step="0.000001" value="84.422318"></label>
     <label class="field">Курс Tradex, часть 3 и далее (с тейкером 0,2%)<input id="tAsk3" type="number" min="0" step="0.000001" value="84.488495"></label>
   </div>
-  <h2>Пополнения</h2>
-  <div id="topsList" class="tops"></div>
-  <div class="tops-actions">
-    <button type="button" id="addTop">Добавить пополнение</button>
-  </div>
-  <p id="calcNote" class="muted"></p>
-  <div class="wrap">
-    <table class="sbp">
-      <thead>
-        <tr><th>Вариант</th><th>Платежей</th><th>2. Комиссия ввода</th><th>3. На бирже</th><th>4. Комиссия сделки</th><th>5. Куплено USDT</th><th>6. Вывод USDT</th><th>7. На Rapira</th><th>8. Выход, ₽</th><th>9. Прибыль, ₽</th></tr>
-      </thead>
-      <tbody id="calcBody"></tbody>
-    </table>
+  <div class="ops-panel">
+    <div class="ops-block">
+      <h3>Пополнения</h3>
+      <div id="topsList" class="tops"></div>
+      <div class="tops-actions">
+        <button type="button" id="addTop">Добавить пополнение</button>
+      </div>
+    </div>
+    <div class="ops-block">
+      <h3>Сводка</h3>
+      <div id="calcNote" class="ops-note"></div>
+    </div>
+    <div class="ops-block">
+      <h3>Варианты расчёта</h3>
+      <div class="wrap">
+        <table class="sbp">
+          <thead>
+            <tr>
+              <th>Вариант</th>
+              <th>N</th>
+              <th>Ввод, ₽</th>
+              <th>На бирже, ₽</th>
+              <th>Сделка, ₽</th>
+              <th>USDT</th>
+              <th>Вывод</th>
+              <th>На Rapira</th>
+              <th>Выход, ₽</th>
+              <th>Прибыль, ₽</th>
+            </tr>
+          </thead>
+          <tbody id="calcBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </section>
 </div>
@@ -356,11 +385,11 @@
     row.className = "top-row";
     row.dataset.id = String(id);
     row.innerHTML =
-      "<label class=\"field\">Сумма пополнения, ₽" +
+      "<label class=\"field\">Сумма, ₽" +
       "<input class=\"top-amt\" type=\"number\" min=\"0\" step=\"1000\" value=\"" + (amount || "") + "\"></label>" +
       "<div class=\"top-opts\">" +
-      "<label><input type=\"radio\" name=\"prov-" + id + "\" value=\"cifra\"" + (provider === "cifra" ? " checked" : "") + "> Считаем только по Цифре</label>" +
-      "<label><input type=\"radio\" name=\"prov-" + id + "\" value=\"tradex\"" + (provider === "tradex" ? " checked" : "") + "> Считаем только по Tradex</label>" +
+      "<label><input type=\"radio\" name=\"prov-" + id + "\" value=\"cifra\"" + (provider === "cifra" ? " checked" : "") + "> Цифра</label>" +
+      "<label><input type=\"radio\" name=\"prov-" + id + "\" value=\"tradex\"" + (provider === "tradex" ? " checked" : "") + "> Tradex</label>" +
       "</div>" +
       "<button type=\"button\" class=\"top-del\">Удалить</button>";
     topsList.appendChild(row);
@@ -399,8 +428,12 @@
     var exitWd = cifraWdPerRound(exitMode);
     var exitHint = cifraExitHint(exitMode);
     bodyEl.innerHTML = "";
+    function setNote(html) { noteEl.innerHTML = html; }
+    function noteLine(k, v) {
+      return "<div class=\"ops-line\"><span class=\"ops-k\">" + k + "</span><span>" + v + "</span></div>";
+    }
     if (!(rap > 0) || !(cAsk > 0) || tRates.some(function (x) { return !(x > 0); })) {
-      noteEl.textContent = "Нужны курс Rapira, Ask Цифры и три курса Tradex больше нуля.";
+      setNote("<div class=\"ops-empty\">Нужны курс Rapira, Ask Цифры и три курса Tradex больше нуля.</div>");
       paintChrome();
       return;
     }
@@ -472,65 +505,49 @@
     }
     var cfParts = [];
     var txParts = [];
-    var txIdx = [];
-    var notes = [];
     tops.forEach(function (top) {
       if (!(top.amount > 0) || !top.provider) return;
       if (top.provider === "cifra") {
         if (top.amount < 10) {
-          pushEmpty("Цифра, пополнение #" + top.no + " · " + fmt(top.amount, 2) + " ₽", "Сумма меньше минимума Цифры (10 ₽).");
+          pushEmpty("Цифра #" + top.no, "Сумма меньше минимума Цифры (10 ₽).");
           return;
         }
         cfParts.push(top.amount);
-        pushCifra(
-          "Цифра, #" + top.no + " · " + fmt(top.amount, 2) + " ₽ · Ask " + fmt(cAsk, 2) + " · " + exitHint + ", свой круг",
-          [top.amount],
-          true
-        );
+        pushCifra("Цифра #" + top.no + " · " + fmt(top.amount, 0) + " ₽", [top.amount], true);
       } else if (top.provider === "tradex") {
         if (top.amount < 500 || top.amount > 100000) {
-          pushEmpty(
-            "Tradex, пополнение #" + top.no + " · " + fmt(top.amount, 2) + " ₽",
-            "Tradex СБП: сумма должна быть от 500 до 100 000 ₽."
-          );
+          pushEmpty("Tradex #" + top.no, "СБП: сумма от 500 до 100 000 ₽.");
           return;
         }
         var idx = txParts.length;
         txParts.push(top.amount);
-        txIdx.push(idx);
-        pushTradex(
-          "Tradex, пополнение #" + top.no + " · " + fmt(top.amount, 2) + " ₽, свой вывод",
-          [top.amount],
-          [idx],
-          true
-        );
+        pushTradex("Tradex #" + top.no + " · " + fmt(top.amount, 0) + " ₽", [top.amount], [idx], true);
       }
     });
     if (cfParts.length > 1) {
-      pushCifra("Цифра, все · Ask " + fmt(cAsk, 2) + " · " + exitHint + ", 1 вывод", cfParts, true);
-      pushCifra("Цифра, все · Ask " + fmt(cAsk, 2) + " · " + exitHint + ", вывод на каждой", cfParts, false);
+      pushCifra("Цифра все · 1 вывод", cfParts, true);
+      pushCifra("Цифра все · вывод на каждой", cfParts, false);
     }
     if (txParts.length > 1) {
       var idxs = txParts.map(function (_, i) { return i; });
-      pushTradex("Tradex, все выбранные, 1 вывод", txParts, idxs, true);
-      pushTradex("Tradex, все выбранные, вывод на каждой", txParts, idxs, false);
+      pushTradex("Tradex все · 1 вывод", txParts, idxs, true);
+      pushTradex("Tradex все · вывод на каждой", txParts, idxs, false);
     }
     if (!cfParts.length && !txParts.length) {
-      noteEl.textContent = "Добавьте сумму пополнения и отметьте «только Цифра» или «только Tradex».";
+      setNote("<div class=\"ops-empty\">Укажите сумму и выберите Цифра или Tradex.</div>");
     } else {
-      notes.push("Rapira " + fmt(rap, 2) + " ₽.");
+      var html = noteLine("Курсы", "Rapira " + fmt(rap, 2) + " ₽ · Ask Цифры " + fmt(cAsk, 2) + " ₽");
       if (cfParts.length) {
-        notes.push("Цифра: " + cfParts.length + " пополнения, суммы " + cfParts.map(function (x) { return fmt(x, 2); }).join(" + ") + " ₽, Ask " + fmt(cAsk, 2) + ".");
-        notes.push("Режим вывода: " + exitHint + " (итого " + fmt(exitWd, 2) + " USDT за один круг).");
-        if (exitMode.bridge) {
-          notes.push("Допуск: депозит Sol/Poly на " + exitMode.bridge + " открыт, зачисление Rapira BEP = 0. Комиссия BEP с Yieldo 19.10.2026.");
-        }
+        html += noteLine("Цифра", cfParts.length + " шт · " + cfParts.map(function (x) { return fmt(x, 0); }).join(" + ") + " ₽");
+        html += noteLine("Вывод", exitHint + " · " + fmt(exitWd, 2) + " USDT / круг");
       }
       if (txParts.length) {
-        var used = txParts.map(function (p, i) { return fmt(p, 2) + "→курс " + (Math.min(i, 2) + 1) + " (" + fmt(tRates[Math.min(i, 2)], 6) + ")"; });
-        notes.push("Tradex: " + txParts.length + " пополнения — " + used.join("; ") + " (режим вывода Цифры на Tradex не влияет).");
+        var used = txParts.map(function (p, i) {
+          return fmt(p, 0) + " ₽ → курс " + (Math.min(i, 2) + 1);
+        });
+        html += noteLine("Tradex", txParts.length + " шт · " + used.join("; "));
       }
-      noteEl.textContent = notes.join(" ");
+      setNote(html);
     }
     var best = -Infinity, bestI = -1;
     rows.forEach(function (row, i) {
@@ -549,8 +566,7 @@
         if (i === bestI || (bestI >= 0 && Math.abs(row.profit - best) < 0.005)) tr.className = "win";
         else if (row.profit < 0) tr.className = "loss";
         var profitClass = row.profit < 0 ? "neg" : "pos";
-        var tradeLabel = (row.cifra ? "1,50% = " : "0,2% внутри цены = ") + fmt(row.trade, 2);
-        tr.innerHTML = "<td>" + row.name + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + tradeLabel + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 2) + "</td><td>" + fmt(row.arrive, 4) + "</td><td>" + fmt(row.cash, 2) + "</td><td class=\"" + profitClass + "\">" + (row.profit > 0 ? "+" : "") + fmt(row.profit, 2) + "</td>";
+        tr.innerHTML = "<td>" + row.name + "</td><td>" + row.n + "</td><td>" + fmt(row.fee, 2) + "</td><td>" + fmt(row.bir, 2) + "</td><td>" + fmt(row.trade, 2) + "</td><td>" + fmt(row.bought, 4) + "</td><td>" + fmt(row.wd, 2) + "</td><td>" + fmt(row.arrive, 4) + "</td><td>" + fmt(row.cash, 2) + "</td><td class=\"" + profitClass + "\">" + (row.profit > 0 ? "+" : "") + fmt(row.profit, 2) + "</td>";
       }
       bodyEl.appendChild(tr);
     });
@@ -563,7 +579,6 @@
   [outEl, cAskEl].concat(tAskEls).forEach(function (el) { el.addEventListener("input", paintCalc); });
   cfExitEl.addEventListener("change", paintCalc);
   addTopRow(100000, "cifra");
-  addTopRow(100000, "tradex");
   paintCalc();
   btn.addEventListener("click", function () {
     var light = root.getAttribute("data-theme") === "light";
